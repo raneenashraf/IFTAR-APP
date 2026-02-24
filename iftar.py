@@ -160,7 +160,7 @@ def set_bg(image_file):
     )
 set_bg("background.jpg")
 
-st.title("🌙 Iftar Registration System")
+st.title("🌙FCDS Iftar Registration ")
 
 # -----------------------
 # LOAD DATA
