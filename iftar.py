@@ -385,25 +385,174 @@ if os.path.exists(FILE_NAME):
         # Table
         st.dataframe(df)
 
-    # ===== Buttons Row =====
-    btn1, btn2, btn3 = st.columns(3)
 
-    with btn1:
-        if st.button("🗑 Clear Last Record"):
+  
+# =====================================================
+# BUTTONS
+# =====================================================
+
+st.divider()
+
+btn1, btn2, btn3, btn4, btn5, btn6 = st.columns(6)
+
+with btn1:
+    if st.button("🗑 Clear Last", key="clear_last"):
+        if not df.empty:
             df = df.iloc[:-1]
-            df.to_excel(FILE_NAME, index=False)
-            st.rerun()
+            df.to_excel(FILE_NAME, index=False, engine="openpyxl")
+        st.rerun()
 
-    with btn2:
-        if st.button("❌ Clear All Data"):
+with btn2:
+    if st.button("❌ Clear All", key="clear_all"):
+        if os.path.exists(FILE_NAME):
             os.remove(FILE_NAME)
+        st.rerun()
+
+with btn3:
+    if os.path.exists(FILE_NAME):
+        with open(FILE_NAME, "rb") as f:
+            st.download_button(
+                "⬇ Download Latest Excel",
+                f,
+                file_name="iftar_data_latest.xlsx",
+                key="download_btn"
+            )
+
+with btn4:
+    if st.button("🗑 Delete Ticket", key="delete_btn"):
+        st.session_state.show_delete = True
+        st.session_state.show_edit = False
+        st.session_state.show_manual = False
+
+with btn5:
+    if st.button("✏ Edit Ticket", key="edit_btn"):
+        st.session_state.show_edit = True
+        st.session_state.show_delete = False
+        st.session_state.show_manual = False
+
+with btn6:
+    if st.button("➕ Manual Ticket", key="manual_btn"):
+        st.session_state.show_manual = True
+        st.session_state.show_delete = False
+        st.session_state.show_edit = False
+
+
+# =====================================================
+# DELETE
+# =====================================================
+
+if st.session_state.get("show_delete", False):
+
+    if not df.empty:
+
+        df["Ticket Number"] = pd.to_numeric(df["Ticket Number"], errors="coerce")
+        df = df.dropna(subset=["Ticket Number"])
+        df["Ticket Number"] = df["Ticket Number"].astype(int)
+
+        ticket_list = sorted(df["Ticket Number"].tolist())
+
+        ticket = st.selectbox("Select Ticket", ticket_list)
+
+        if st.button("Confirm Delete", key="confirm_delete"):
+            df = df[df["Ticket Number"] != ticket]
+            df.to_excel(FILE_NAME, index=False, engine="openpyxl")
+            st.success("Deleted Successfully ✅")
+            st.session_state.show_delete = False
             st.rerun()
 
-    with btn3:
-        with open(FILE_NAME, "rb") as file:
-            st.download_button(
-                label="⬇ Download Excel",
-                data=file,
-                file_name="iftar_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+    else:
+        st.info("No tickets available.")
+
+
+# =====================================================
+# EDIT
+# =====================================================
+
+if st.session_state.get("show_edit", False):
+
+    if not df.empty:
+
+        df["Ticket Number"] = pd.to_numeric(df["Ticket Number"], errors="coerce")
+        df = df.dropna(subset=["Ticket Number"])
+        df["Ticket Number"] = df["Ticket Number"].astype(int)
+
+        ticket_list = sorted(df["Ticket Number"].tolist())
+        ticket = st.selectbox("Select Ticket to Edit", ticket_list)
+
+        row_index = df[df["Ticket Number"] == ticket].index
+
+        if len(row_index) > 0:
+            row_index = row_index[0]
+            selected = df.loc[row_index]
+
+            with st.form("edit_form"):
+
+                name_e = st.text_input("Name", selected["Name"])
+                student_e = st.text_input("Student ID", str(selected["Student ID"]))
+                meal_e = st.selectbox("Meal", ["Meal 1","Meal 2","Meal 3","Without Meal"])
+                juice_e = st.selectbox("Juice", ["Sobya","Kharoub","3enab","Tamr Hendi","Without"])
+
+                if st.form_submit_button("Save Changes"):
+
+                    df.loc[row_index,"Name"] = name_e
+                    df.loc[row_index,"Student ID"] = student_e
+                    df.loc[row_index,"Meal"] = meal_e
+                    df.loc[row_index,"Juice"] = juice_e
+                    df.loc[row_index,"Total Price"] = 110 if meal_e=="Without Meal" else 300
+
+                    df.to_excel(FILE_NAME, index=False, engine="openpyxl")
+
+                    st.success("Updated Successfully ✅")
+                    st.session_state.show_edit = False
+                    st.rerun()
+
+    else:
+        st.info("No tickets available.")
+
+
+# =====================================================
+# MANUAL TICKET
+# =====================================================
+
+if st.session_state.get("show_manual", False):
+
+    with st.form("manual_form"):
+
+        tnum = st.number_input("Ticket Number", min_value=1, step=1)
+        name_m = st.text_input("Name")
+        student_m = st.text_input("Student ID")
+
+        meal_m = st.selectbox("Meal", ["Meal 1","Meal 2","Meal 3","Without Meal"])
+        juice_m = st.selectbox("Juice", ["Sobya","Kharoub","3enab","Tamr Hendi","Without"])
+
+        if st.form_submit_button("Add Ticket"):
+
+            if not df.empty:
+                existing = df["Ticket Number"].astype(str).tolist()
+            else:
+                existing = []
+
+            if str(int(tnum)) in existing:
+                st.error("Ticket already exists ❌")
+            else:
+
+                new_row = pd.DataFrame({
+                    "Ticket Number":[int(tnum)],
+                    "Name":[name_m],
+                    "Student ID":[student_m],
+                    "Department":[""],
+                    "Level":[""],
+                    "Meal":[meal_m],
+                    "Juice":[juice_m],
+                    "Total Price":[110 if meal_m=="Without Meal" else 300],
+                    "Timestamp":[datetime.now()]
+                })
+
+                df = pd.concat([df,new_row],ignore_index=True)
+                df = df.sort_values("Ticket Number")
+
+                df.to_excel(FILE_NAME,index=False,engine="openpyxl")
+
+                st.success("Added Successfully ✅")
+                st.session_state.show_manual = False
+                st.rerun()
