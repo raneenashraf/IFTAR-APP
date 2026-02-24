@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 import base64
 
 FILE_NAME = "iftar_data.xlsx"
-
+# 🔐 Admin Password
+ADMIN_PASSWORD = "FCDSIFTAR2026"  
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+    
+    
 # 🌙 Page Config
 st.set_page_config(
     page_title="FCDS IFTAR Registration ",
@@ -161,6 +166,24 @@ def set_bg(image_file):
 set_bg("background.jpg")
 
 st.title("🌙FCDS Iftar Registration ")
+# -----------------------
+# ADMIN LOGIN
+# -----------------------
+
+if not st.session_state.authenticated:
+
+    st.subheader("🔐 Admin Login")
+
+    password_input = st.text_input("Enter Admin Password", type="password")
+
+    if password_input == ADMIN_PASSWORD:
+        st.session_state.authenticated = True
+        st.success("Access Granted ✅")
+        st.rerun()
+    elif password_input != "":
+        st.error("Incorrect Password")
+
+    st.stop()  
 
 # -----------------------
 # LOAD DATA
